@@ -4,8 +4,8 @@ typedef enum {
 
 
 struct _bm_header {
-	unsigned int used : 1 ;
-	unsigned int size : 4 ;
+	unsigned int used : 1 ;	// if 1 : used, 0 : unused
+	unsigned int size : 4 ;	// size of block as base is 2(4~12)
 	struct _bm_header * next ;
 } ;
 
