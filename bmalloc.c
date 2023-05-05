@@ -43,6 +43,7 @@ void * bmalloc (size_t s)
 				break ;
 			}
 		}
+		
 	}
 	// 할당하고
 	if((int)itr->size == fitting_size){
