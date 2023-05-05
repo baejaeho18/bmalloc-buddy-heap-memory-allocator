@@ -13,28 +13,46 @@ void * sibling (void * h)
 int fitting (size_t s) 
 {
 	// TODO
+	int size;
+	for(size = 16 ; size <= 4096 ; size *= 2){
+		if(s + 9 < size){
+			// print("%d", size);
+			return size;
+		}
+	}
+	size = ((s + 9) % 4096) * 4096 + 4096 ;
+	// print("%d", size) ;
+	return size ;
 }
 
 void * bmalloc (size_t s) 
 {
-	// TODO 
+	// TODO : allocate a buffer of s-bytes and returns its starting address
+	// mmap()
 	return 0x0 ; // erase this
 }
 
 void bfree (void * p) 
 {
-	// TODO 
+	// TODO : free the allocated buffer srarting at pointer p
+	// before header -> next header
+	// header.used->1
+	// merge with sibiling
+	// if 4096, unmap()
 }
 
 void * brealloc (void * p, size_t s) 
 {
-	// TODO
+	// TODO : resize the allocated memory buffer into s bytes
+	// bfree
+	// bmalloc
 	return 0x0 ; // erase this 
 }
 
 void bmconfig (bm_option opt) 
 {
-	// TODO
+	// TODO : set as BestFit or FirstFit
+	
 }
 
 
@@ -57,4 +75,5 @@ bmprint ()
 	printf("=================================================\n") ;
 
 	//TODO: print out the stat's.
+	// used? size, payload size
 }
