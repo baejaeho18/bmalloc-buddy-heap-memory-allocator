@@ -8,15 +8,13 @@ bm_option bm_mode = BestFit ;
 bm_header bm_list_head = {0, 0, 0x0 } ;	// next points the first header of pages
 bm_header_ptr pre_siblings ;
 bm_header_ptr post_siblings ;
-int total_size = 0 ;
 
 void * sibling (void * h)
 {
-	// TODO : returns the header address of the suspected sibling block of h
 	int size = ((bm_header *)h)->size ;
 
 	bm_header_ptr itr ;
-	bm_header_ptr pre = 0x0 ;
+	bm_header_ptr pre = &bm_list_head;
 	int piled_size = 1 ;	// why?
 
 	for (itr = bm_list_head.next ; itr != 0x0 || itr != (bm_header *)h ; itr = itr->next) {
@@ -40,14 +38,11 @@ void * sibling (void * h)
 
 int fitting (size_t s) 
 {
-	// TODO : return the size field value of a fitting blocks to accommodate s bytes
 	for (int size = 16, val = 4 ; size <= 4096 ; size *= 2, val++) {
 		if ((int)s + 9 < size) {
 			return val ;
 		}
 	}
-	// size = ((s + 9) % 4096) * 4096 + 4096 ;
-	// printf("How do I manage the size:%d?\n", size) ;
 	return -1 ;
 }
 
@@ -57,13 +52,12 @@ void * bmalloc (size_t s)
 	bm_header_ptr bm_list_tail ;
 	int fitting_size = fitting(s) ;
 
-	if (total_size == 0) {
+	if (bm_list_head.next == 0x0) {
 		if ((itr = mmap(NULL, 4096,  PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS , -1, 0)) == MAP_FAILED) {
 			perror("mmap error\n") ;
 			exit(1) ;
 		}
 		printf("1 %d, %d, %p\n", itr->used, itr->size, itr->next) ;
-		total_size += 4096 ;
 		bm_list_head.next = itr ;
 		itr->used = 0 ;
 		itr->size = 12 ;
@@ -93,7 +87,6 @@ void * bmalloc (size_t s)
 			perror("mmap error\n") ;
 			exit(1) ;
 		}
-		total_size += 4096 ;
 		bm_list_tail->next = itr ;
 		itr->used = 0 ;
 		itr->size = 12 ;
@@ -118,17 +111,17 @@ void bfree (void * p)
 	// TODO : free the allocated buffer srarting at pointer p
 	((bm_header *)p)->used = 0 ;
 
-	bm_header_ptr itr ;
-	for (itr = p ; itr->size == ((bm_header *)sibling(itr))->size ; itr = pre_siblings->next) {
-		pre_siblings->next == post_siblings ;
-	}
+	// bm_header_ptr itr ;
+	// for (itr = p ; itr->size == ((bm_header *)sibling(itr))->size ; itr = pre_siblings->next) {
+	// 	pre_siblings->next == post_siblings ;
+	// }
 
-	if (itr->size == 4096) {
-		if (munmap(p, 4096) == -1) {
-			perror("munmap error\n") ;
-			exit(1) ;
-		};
-	}
+	// if (itr->size == 4096) {
+	// 	if (munmap(p, 4096) == -1) {
+	// 		perror("munmap error\n") ;
+	// 		exit(1) ;
+	// 	};
+	// }
 }
 
 void * brealloc (void * p, size_t s) 
@@ -139,7 +132,6 @@ void * brealloc (void * p, size_t s)
 
 void bmconfig (bm_option opt) 
 {
-	// TODO : set as BestFit or FirstFit
 	bm_mode = opt ;
 }
 
@@ -148,9 +140,10 @@ bmprint ()
 {
 	bm_header_ptr itr ;
 	int i ;
-	int total_used_size = 0;
-	int total_available_size = 0;
-	int total_internal_fragment = 0;
+	int total_size = 0 ;
+	int total_used_size = 0 ;
+	int total_available_size = 0 ;
+	int total_internal_fragment = 0 ;
 
 	printf("==================== bm_list ====================\n") ;
 	for (itr = bm_list_head.next, i = 0 ; itr != 0x0 ; itr = itr->next, i++) {
@@ -171,12 +164,14 @@ bmprint ()
 		else /* used */ {
 			total_used_size += (1 << (int) itr->size) ;
 		}
+		total_size += (1 << (int) itr->size) ;
 	}
 	printf("=================================================\n") ;
 	printf("Total size = %d\n", total_size) ;
 	printf("Total used size = %d\n", total_used_size) ;
 	printf("Total available size = %d\n", total_size - total_used_size) ;
-	printf("Total internal fragment = %d\n", total_internal_fragment) ; //b problem
+	printf("Total internal fragment = %d\n", total_internal_fragment) ; // problem
 	printf("=================================================\n") ;
 	printf("\n") ;
+
 }
