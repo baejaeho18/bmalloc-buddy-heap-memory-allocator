@@ -17,15 +17,20 @@ void * sibling (void * h)
 	bm_header_ptr pre = &bm_list_head;
 	int piled_size = 1 ;	// why?
 
-	for (itr = bm_list_head.next ; itr != 0x0 || itr != (bm_header *)h ; itr = itr->next) {
+	pre_siblings = malloc(sizeof(bm_header)) ;
+	post_siblings = malloc(sizeof(bm_header)) ;
+
+	for (itr = bm_list_head.next ; itr != (bm_header *)h ; itr = itr->next) {
+		if (itr == 0x0) {
+			perror("wrong header pointer\n") ;
+			exit(1) ;
+		}
 		piled_size += (1 << itr->size) ;
 		pre_siblings = pre ;
 		pre = itr ;
 	}
-	if (itr == 0x0) {
-		perror("wrong header pointer\n") ;
-	}
-	else if ((piled_size / size) % 2 == 1) { // left side
+	
+	if ((piled_size / size) % 2 == 0) { // left side
 		pre_siblings = pre ;
 		post_siblings = ((bm_header *)h)->next->next ;
 		return ((bm_header *)h)->next ; 
@@ -57,7 +62,7 @@ void * bmalloc (size_t s)
 			perror("mmap error\n") ;
 			exit(1) ;
 		}
-		printf("1 %d, %d, %p\n", itr->used, itr->size, itr->next) ;
+		// printf("1 %d, %d, %p\n", itr->used, itr->size, itr->next) ;
 		bm_list_head.next = itr ;
 		itr->used = 0 ;
 		itr->size = 12 ;
@@ -110,18 +115,31 @@ void bfree (void * p)
 {
 	// TODO : free the allocated buffer srarting at pointer p
 	((bm_header *)p)->used = 0 ;
+	// p의 payload 리셋 필요
 
-	// bm_header_ptr itr ;
-	// for (itr = p ; itr->size == ((bm_header *)sibling(itr))->size ; itr = pre_siblings->next) {
-	// 	pre_siblings->next == post_siblings ;
-	// }
+	bm_header_ptr itr ;
+	for (itr = p ; ((bm_header *)sibling(itr))->used == 0 ; itr = pre_siblings->next) {
+		if (itr->size == ((bm_header *)sibling(itr))->size) { 
+			pre_siblings->next->next = post_siblings ;
+			pre_siblings->next->size++ ;
+		}
+		else {
+			break ;
+		}
+		if (pre_siblings->next->size == 12)
+			break ;
+	}
 
-	// if (itr->size == 4096) {
-	// 	if (munmap(p, 4096) == -1) {
-	// 		perror("munmap error\n") ;
-	// 		exit(1) ;
-	// 	};
-	// }
+	if (pre_siblings->next->size == 12) {
+		if (munmap(pre_siblings->next, 4096) == -1) {
+			perror("munmap error\n") ;
+			exit(1) ;
+		};
+		pre_siblings->next = post_siblings ;
+	}
+	
+	// free(pre_siblings) ;
+	// free(post_siblings) ;
 }
 
 void * brealloc (void * p, size_t s) 
@@ -172,6 +190,6 @@ bmprint ()
 	printf("Total available size = %d\n", total_size - total_used_size) ;
 	printf("Total internal fragment = %d\n", total_internal_fragment) ; // problem
 	printf("=================================================\n") ;
-	printf("\n") ;
+//	printf("\n") ;
 
 }
