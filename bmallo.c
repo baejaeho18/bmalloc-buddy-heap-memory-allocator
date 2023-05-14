@@ -171,6 +171,7 @@ bmprint ()
 		char * s = ((char *) itr) + sizeof(bm_header) ;
 		for (j = 0 ; j < (itr->size >= 8 ? 8 : itr->size) ; j++) 
 			printf("%02x ", s[j]) ;
+		printf("(%lu)", (1 << itr->size) - sizeof(bm_header)) ;
 		printf("\n") ;
 
 		//TODO: print out the stat's.
