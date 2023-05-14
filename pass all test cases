@@ -14,15 +14,15 @@ void * sibling (void * h)
 	int size = ((bm_header *)h)->size ;
 
 	bm_header_ptr itr ;
-	bm_header_ptr pre = &bm_list_head;
+	bm_header_ptr pre = &bm_list_head ;
 	int piled_size = 1 ;	// why?
 
-	pre_siblings = malloc(sizeof(bm_header)) ;
-	post_siblings = malloc(sizeof(bm_header)) ;
+	pre_siblings = malloc(sizeof(bm_header)) ;	// pre
+	post_siblings = malloc(sizeof(bm_header)) ;	// nothing
 
 	for (itr = bm_list_head.next ; itr != (bm_header *)h ; itr = itr->next) {
 		if (itr == 0x0) {
-			perror("wrong header pointer\n") ;
+			perror("wrong header pointer") ;
 			exit(1) ;
 		}
 		piled_size += (1 << itr->size) ;
@@ -42,10 +42,14 @@ void * sibling (void * h)
 }
 
 int fitting (size_t s) 
-{
-	for (int size = 16, val = 4 ; size <= 4096 ; size *= 2, val++) {
-		if ((int)s + 9 < size) {
-			return val ;
+{	
+	if (s < 7 || 4088 < s) {
+		perror("Out of available allocation") ;
+		return -1 ;
+	}
+	for (int size = 16, exp = 4 ; size <= 4096 ; size *= 2, exp++) {
+		if ((int)s + 9 <= size) {
+			return exp ;
 		}
 	}
 	return -1 ;
@@ -62,15 +66,16 @@ void * bmalloc (size_t s)
 			perror("mmap error\n") ;
 			exit(1) ;
 		}
-		// printf("1 %d, %d, %p\n", itr->used, itr->size, itr->next) ;
+		
 		bm_list_head.next = itr ;
 		itr->used = 0 ;
 		itr->size = 12 ;
 		itr->next = 0x0 ;
 	}
 
-	bm_header_ptr fitting_block = malloc(sizeof(bm_header)) ;
+	bm_header_ptr fitting_block = malloc(sizeof(bm_header)) ; //&{0, 13, 0x0}
 	fitting_block->size = 13 ;
+	
 	for (itr = bm_list_head.next ; itr != 0x0 ; itr = itr->next) {
 		if (fitting_size <= itr->size && itr->used == 0) {
 			if (bm_mode == FirstFit) {
@@ -87,8 +92,7 @@ void * bmalloc (size_t s)
 	}
 
 	if (12 < fitting_block->size) {
-		// no fitting block : mmap
-		if ((itr = mmap(NULL, 4096,  PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS , -1, 0)) == MAP_FAILED) {
+		if ((itr = mmap(NULL, 4096,  PROT_WRITE | PROT_READ, MAP_SHARED | MAP_ANONYMOUS, -1, 0)) == MAP_FAILED) {
 			perror("mmap error\n") ;
 			exit(1) ;
 		}
@@ -103,17 +107,17 @@ void * bmalloc (size_t s)
 
 		fitting_block->next = (bm_header_ptr) ((char *)fitting_block + (1 << (fitting_block->size - 1))) ;
 		fitting_block->next->used = 0 ;
-		fitting_block->next->size = fitting_block->size - 1;
+		fitting_block->next->size = fitting_block->size - 1 ;
 		fitting_block->next->next = fitting_next ;
-
 	}
 	fitting_block->used = 1 ;
-	return fitting_block ;
+	return ((bm_header_ptr) ((char *)fitting_block + sizeof(bm_header))) ;
 }
 
 void bfree (void * p) 
 {
 	// TODO : free the allocated buffer srarting at pointer p
+	p = ((bm_header_ptr) ((char *)p - sizeof(bm_header))) ;
 	((bm_header *)p)->used = 0 ;
 	// p의 payload 리셋 필요
 
@@ -134,7 +138,7 @@ void bfree (void * p)
 		if (munmap(pre_siblings->next, 4096) == -1) {
 			perror("munmap error\n") ;
 			exit(1) ;
-		};
+		}
 		pre_siblings->next = post_siblings ;
 	}
 	
@@ -161,7 +165,6 @@ bmprint ()
 	int total_size = 0 ;
 	int total_used_size = 0 ;
 	int total_available_size = 0 ;
-	int total_internal_fragment = 0 ;
 
 	printf("==================== bm_list ====================\n") ;
 	for (itr = bm_list_head.next, i = 0 ; itr != 0x0 ; itr = itr->next, i++) {
@@ -174,8 +177,6 @@ bmprint ()
 		printf("\n") ;
 
 		//TODO: print out the stat's.
-		// total size, total used size, total available size, total internal fragment
-		// each block's used, size, payload size
 		if (itr->used == 0) {	// available(unused)
 			total_available_size += (1 << (int) itr->size) ;
 		}
@@ -188,8 +189,6 @@ bmprint ()
 	printf("Total size = %d\n", total_size) ;
 	printf("Total used size = %d\n", total_used_size) ;
 	printf("Total available size = %d\n", total_size - total_used_size) ;
-	printf("Total internal fragment = %d\n", total_internal_fragment) ; // problem
 	printf("=================================================\n") ;
-//	printf("\n") ;
 
 }
