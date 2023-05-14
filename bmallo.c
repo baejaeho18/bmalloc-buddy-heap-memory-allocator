@@ -6,8 +6,6 @@
 
 bm_option bm_mode = BestFit ;
 bm_header bm_list_head = {0, 0, 0x0 } ;	// next points the first header of pages
-bm_header_ptr pre_siblings ;
-bm_header_ptr post_siblings ;
 
 void * sibling (void * h)
 {
@@ -15,10 +13,7 @@ void * sibling (void * h)
 
 	bm_header_ptr itr ;
 	bm_header_ptr pre = &bm_list_head ;
-	int piled_size = 1 ;	// why?
-
-	pre_siblings = malloc(sizeof(bm_header)) ;	// pre
-	post_siblings = malloc(sizeof(bm_header)) ;	// nothing
+	int piled_size = 0 ;	// why 1?
 
 	for (itr = bm_list_head.next ; itr != (bm_header *)h ; itr = itr->next) {
 		if (itr == 0x0) {
@@ -26,19 +21,13 @@ void * sibling (void * h)
 			exit(1) ;
 		}
 		piled_size += (1 << itr->size) ;
-		pre_siblings = pre ;
 		pre = itr ;
 	}
 	
-	if ((piled_size / size) % 2 == 0) { // left side
-		pre_siblings = pre ;
-		post_siblings = ((bm_header *)h)->next->next ;
+	if ((piled_size / size) % 2 == 0) // left side
 		return ((bm_header *)h)->next ; 
-	}
-	else {	// right side
-		post_siblings = ((bm_header *)h)->next ;
-		return pre ;
-	}
+	// right side
+	return pre ;
 }
 
 int fitting (size_t s) 
@@ -73,7 +62,7 @@ void * bmalloc (size_t s)
 		itr->next = 0x0 ;
 	}
 
-	bm_header_ptr fitting_block = malloc(sizeof(bm_header)) ; //&{0, 13, 0x0}
+	bm_header_ptr fitting_block = malloc(sizeof(bm_header)) ;
 	fitting_block->size = 13 ;
 	
 	for (itr = bm_list_head.next ; itr != 0x0 ; itr = itr->next) {
@@ -117,21 +106,33 @@ void * bmalloc (size_t s)
 void bfree (void * p) 
 {
 	// TODO : free the allocated buffer srarting at pointer p
+	bm_header_ptr pre_siblings ;
+	bm_header_ptr post_siblings ;
+
 	p = ((bm_header_ptr) ((char *)p - sizeof(bm_header))) ;
 	((bm_header *)p)->used = 0 ;
 	// p의 payload 리셋 필요
+	//int size = ((bm_header *)p)->size ;
+	//memeset((char *)p + 9, "\0", size - 9) ;
 
 	bm_header_ptr itr ;
-	for (itr = p ; ((bm_header *)sibling(itr))->used == 0 ; itr = pre_siblings->next) {
+	for (itr = p ; ((bm_header *)sibling(itr))->used == 0 ; ) {
+		if (itr->size == 12)
+			break ;
 		if (itr->size == ((bm_header *)sibling(itr))->size) { 
-			pre_siblings->next->next = post_siblings ;
-			pre_siblings->next->size++ ;
+			if (itr->next = ((bm_header *)sibling(itr))) {
+				itr->size++ ;
+				itr->next = itr->next->next ;
+			}
+			else {
+				itr = ((bm_header *)sibling(itr)) ;
+				itr->size++ ;
+				itr->next = itr->next->next ;
+			}
 		}
 		else {
 			break ;
 		}
-		if (pre_siblings->next->size == 12)
-			break ;
 	}
 
 	if (pre_siblings->next->size == 12) {
@@ -148,8 +149,15 @@ void bfree (void * p)
 
 void * brealloc (void * p, size_t s) 
 {
+	//p = ((bm_header_ptr) ((char *)p - sizeof(bm_header))) ;
+	//int size = 1 << ((bm_header *)p)->size ;
+	//char buf = malloc(size - 9) ;
+	//memcpy(buf, (char *)p + 9, size - 9) ;
 	bfree(p) ;
-	return bmalloc(s) ;
+	void * return_ptr = bmalloc(s) ;
+	//memcpy((char*)return_ptr + 9, buf, (size < 1 << (int)s) ? size : 1 << s ) ;
+	//free(buf) ;
+	return return_ptr ;
 }
 
 void bmconfig (bm_option opt) 
